@@ -88,6 +88,15 @@ it('sends owner notifications to OWNER_EMAIL with reply-to set to the customer',
         ->and($email->getSubject())->toStartWith('New booking: Consultation with');
 });
 
+it('shows a short token number instead of the UUID in owner emails', function () {
+    $email = renderEmail(new OwnerBookingNotification($this->appointment, 'booked'));
+    $token = '#'.str_pad((string) $this->appointment->id, 4, '0', STR_PAD_LEFT);
+
+    expect($this->appointment->tokenNumber())->toBe($token)
+        ->and($email->getHtmlBody())->toContain("Token: {$token}")->not->toContain($this->appointment->uid)
+        ->and($email->getTextBody())->toContain("Token: {$token}")->not->toContain($this->appointment->uid);
+});
+
 it('skips owner notifications when OWNER_EMAIL is not set', function () {
     Mail::fake();
     config(['booking.owner_email' => null]);

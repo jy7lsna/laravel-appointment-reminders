@@ -15,6 +15,6 @@
     <p style="margin:0;font-size:14px;">
         Email: <a href="mailto:{{ $appointment->customer_email }}">{{ $appointment->customer_email }}</a><br>
         Phone: {{ $appointment->customer_phone }}<br>
-        Reference: {{ $appointment->uid }}
+        Token: {{ $appointment->tokenNumber() }}
     </p>
 @endsection

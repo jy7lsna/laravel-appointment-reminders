@@ -87,6 +87,12 @@ class Appointment extends Model
         return ! $this->isCancelled() && ! $this->hasStarted();
     }
 
+    /** Short, human-friendly booking number for people, e.g. "#0042". */
+    public function tokenNumber(): string
+    {
+        return '#'.str_pad((string) $this->getKey(), 4, '0', STR_PAD_LEFT);
+    }
+
     /** Globally unique iCalendar UID, e.g. "{uuid}@example.com". */
     public function icalUid(): string
     {

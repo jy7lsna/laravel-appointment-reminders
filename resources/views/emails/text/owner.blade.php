@@ -13,4 +13,4 @@ Booking cancelled
 @include('emails.text.details')
 Email: {!! $appointment->customer_email !!}
 Phone: {!! $appointment->customer_phone !!}
-Reference: {!! $appointment->uid !!}
+Token: {!! $appointment->tokenNumber() !!}
