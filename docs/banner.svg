@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-labelledby="title desc">
+  <title id="title">Laravel Appointment Reminders</title>
+  <desc id="desc">Appointment booking with calendar invites, 24-hour and 2-hour reminders, and one-click cancel and reschedule, sent with the Mailtrap Email API.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e1b4b"/>
+      <stop offset="1" stop-color="#312e81"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0b0a24" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="320" rx="20" fill="url(#bg)"/>
+  <circle cx="1180" cy="-40" r="220" fill="#4338ca" opacity="0.35"/>
+  <circle cx="900" cy="380" r="160" fill="#6366f1" opacity="0.18"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="64" y="104" fill="#a5b4fc" font-size="20" font-weight="600" letter-spacing="2">LARAVEL 12 · MAILTRAP EMAIL API</text>
+    <text x="64" y="160" fill="#ffffff" font-size="46" font-weight="800">Appointment Reminders</text>
+    <text x="64" y="206" fill="#e0e7ff" font-size="22">Booking page · calendar invites (.ics) · 24h &amp; 2h reminders</text>
+    <text x="64" y="238" fill="#e0e7ff" font-size="22">One-click cancel &amp; reschedule · owner notifications</text>
+
+    <!-- Calendar invite card -->
+    <g transform="translate(780 48)" filter="url(#shadow)">
+      <rect width="420" height="224" rx="16" fill="#ffffff"/>
+      <rect width="420" height="56" rx="16" fill="#4338ca"/>
+      <rect y="40" width="420" height="16" fill="#4338ca"/>
+      <rect x="64" y="-10" width="10" height="28" rx="5" fill="#c7d2fe"/>
+      <rect x="346" y="-10" width="10" height="28" rx="5" fill="#c7d2fe"/>
+      <text x="24" y="37" fill="#ffffff" font-size="18" font-weight="700">FRI 23 OCT · 3:00 PM EDT</text>
+
+      <text x="24" y="96" fill="#18181b" font-size="22" font-weight="700">Consultation with Acme Studio</text>
+      <text x="24" y="126" fill="#52525b" font-size="16">📎 invite.ics · METHOD:REQUEST · SEQUENCE:0</text>
+
+      <rect x="24" y="152" width="96" height="36" rx="18" fill="#eef0ff"/>
+      <text x="72" y="176" fill="#4338ca" font-size="16" font-weight="700" text-anchor="middle">24h ✓</text>
+      <rect x="132" y="152" width="84" height="36" rx="18" fill="#eef0ff"/>
+      <text x="174" y="176" fill="#4338ca" font-size="16" font-weight="700" text-anchor="middle">2h ✓</text>
+      <rect x="228" y="152" width="168" height="36" rx="18" fill="#dcfce7"/>
+      <text x="312" y="176" fill="#166534" font-size="16" font-weight="700" text-anchor="middle">Confirmed</text>
+    </g>
+  </g>
+</svg>
