@@ -288,7 +288,7 @@ The other emails:
 | Confirmation (+ `invite.ics`) | customer | `appointment-confirmation` | `Confirmed: Consultation on Fri 23 Oct, 3:00 PM EDT` |
 | Rescheduled (+ `invite.ics`) | customer | `appointment-reschedule` | `Rescheduled: Consultation moved to Sat 24 Oct, 12:00 PM EDT` |
 | Cancelled (+ `cancel.ics`) | customer | `appointment-cancellation` | `Cancelled: Session on Mon 26 Oct, 11:00 AM EDT` |
-| Owner notification | `OWNER_EMAIL` | `owner-notification` | `New booking: …` · `Rescheduled: …` · `Cancelled: … with Priya Sharma on …` |
+| Owner notification | `OWNER_EMAIL` | `owner-notification` | `New booking: …` · `Rescheduled: …` · `Cancelled: … with John Miller on …` |
 
 ## Calendar invites
 
@@ -326,7 +326,7 @@ LOCATION:350 5th Ave\, New York\, NY 10118\, USA
 ORGANIZER;CN=Acme Studio:MAILTO:appointments@your-verified-domain.com
 SEQUENCE:0
 LAST-MODIFIED:20261015T065821Z
-ATTENDEE;CN=Priya Sharma;ROLE=REQ-PARTICIPANT;RSVP=FALSE:MAILTO:priya@example.com
+ATTENDEE;CN=John Miller;ROLE=REQ-PARTICIPANT;RSVP=FALSE:MAILTO:john.miller@example.com
 END:VEVENT
 END:VCALENDAR
 ```
