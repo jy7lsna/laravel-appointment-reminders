@@ -37,23 +37,11 @@ A small, complete Laravel app that handles each of those details, ready to read,
 
 ## Demo
 
-A real reminder run looks like this (one confirmed appointment that starts in 23 hours):
+<p align="center">
+  <img src="docs/demo.gif" alt="Booking an appointment: choose a service, pick date and time slot, receive an email with an .ics calendar invite, see scheduled 24h and 2h reminders, and reschedule or cancel with one click" width="720">
+</p>
 
-```text
-$ php artisan appointments:send-reminders --dry-run
-Dry run at 2026-10-21T06:50:32Z – nothing will be sent.
-Would send 24h reminder → John Miller (john.miller@example.com) for Thu 22 Oct, 1:50 AM EDT [b409b7c1-bab0-4efe-ab2f-919593ba7c8f]
-1 reminder(s) due.
-
-$ php artisan appointments:send-reminders
-Queued 24h reminder → John Miller (john.miller@example.com) for Thu 22 Oct, 1:50 AM EDT [b409b7c1-bab0-4efe-ab2f-919593ba7c8f]
-1 reminder(s) queued.
-
-$ php artisan appointments:send-reminders
-0 reminder(s) queued.
-```
-
-The second real run sends nothing: each reminder is claimed in the database before it's queued. An appointment booked less than 24 hours ahead gets no 24h reminder at all, only the 2h one later. See [Screenshots](#screenshots) for the booking pages and the emails.
+Booking an appointment with calendar invites and automatic reminders: pick a service, select a free slot, confirm your details, receive the .ics invite in your inbox, and see 24-hour and 2-hour reminders delivered automatically. Recorded from a local run of this code.
 
 ## How it works
 
@@ -88,6 +76,12 @@ flowchart TB
 | Templates | HTML and plain text for each email | `resources/views/emails/` |
 
 ### Booking to reminders
+
+The customer picks a slot and books in the browser. The Laravel app locks writes, validates the slot and saves to SQLite, then queues confirmation and owner emails via the Mailtrap bridge.
+
+<p align="center">
+  <img src="docs/flow.svg" alt="Booking flow: the customer submits a slot, the Laravel app locks writes, validates availability and saves to SQLite, then queues confirmation and owner emails; the scheduler claims due 24h and 2h reminders and sends them through Mailtrap" width="100%">
+</p>
 
 1. The customer opens `GET /book/{service}`, picks a day and a time, and fills in name, email and phone.
 2. The browser posts the form to `POST /book/{service}`. The request is validated and throttled to 10 a minute per IP.
@@ -248,57 +242,45 @@ Open **http://localhost:8000**, pick a service and a slot, and book with your ow
 
 ### What you'll see in the terminal
 
+The application runs background processes for queue handling and scheduling: `queue:work` sends queued transactional emails, while `schedule:work` triggers the reminder check every 5 minutes.
+
 **The server and the scheduler started**
 
-```text
-$ php artisan serve
-
-   INFO  Server running on [http://127.0.0.1:8000].
-
-  Press Ctrl+C to stop the server
-
-$ php artisan schedule:work
-
-   INFO  Running scheduled tasks.
-```
+<img src="docs/logs-start.png" alt="Terminal output of php artisan serve and php artisan schedule:work" width="100%">
 
 **The queue worker after a booking:** the confirmation to the customer and the notification to the owner.
 
-```text
-$ php artisan queue:work
-  2026-10-21 06:50:29 App\Mail\AppointmentConfirmed .................. RUNNING
-  2026-10-21 06:50:29 App\Mail\AppointmentConfirmed ............. 25.77ms DONE
-  2026-10-21 06:50:29 App\Mail\OwnerBookingNotification .............. RUNNING
-  2026-10-21 06:50:29 App\Mail\OwnerBookingNotification .......... 1.46ms DONE
-```
+<img src="docs/logs-queue.png" alt="Queue worker logs showing AppointmentConfirmed and OwnerBookingNotification dispatched" width="100%">
 
-**Force the reminders to send** (for testing) by moving your latest booking into a reminder window:
+**Sending reminders:** the dry run previews what is due, the real run queues the 24h reminder, and a second run claims nothing.
 
-```bash
-# 24h reminder: starts in 23 hours, booked 2 days ago
-php artisan tinker --execute='App\Models\Appointment::latest("id")->first()->update(["starts_at"=>now()->addHours(23),"ends_at"=>now()->addHours(23)->addMinutes(30),"booked_at"=>now()->subDays(2),"reminder_24h_sent_at"=>null,"reminder_2h_sent_at"=>null]);'
-php artisan appointments:send-reminders
+<img src="docs/logs-reminders.png" alt="Terminal logs of appointments:send-reminders dry-run and atomic queue execution" width="100%">
 
-# 2h reminder: starts in 90 minutes
-php artisan tinker --execute='App\Models\Appointment::latest("id")->first()->update(["starts_at"=>now()->addMinutes(90),"ends_at"=>now()->addMinutes(120),"reminder_2h_sent_at"=>null]);'
-php artisan appointments:send-reminders
-```
+**Triggering the 2-hour reminder:** moving the appointment into the 2h window and dispatching the reminder.
+
+<img src="docs/logs-reschedule.png" alt="Terminal logs of tinker appointment update and 2h reminder execution" width="100%">
 
 ## Screenshots
 
 <p align="center">
-  <em>Screenshot to add: <code>docs/screenshots/page-2-booking.png</code> (the booking page with a date and time picked)</em><br>
-  <em>Screenshot to add: <code>docs/screenshots/page-3-appointment.png</code> (the "You're booked!" page)</em>
+  <img src="docs/screenshots/page-2-booking.png" alt="Booking page: service info on the left, date picker and available time slots on the right" width="400">
+  <img src="docs/screenshots/page-3-appointment.png" alt="Confirmation page showing You're booked, appointment details and Reschedule and Cancel buttons" width="400">
 </p>
 <p align="center">Pick a day and a time, enter your details, and land on a confirmation page with a Reschedule and a Cancel button.</p>
 
 <p align="center">
-  <em>Screenshot to add: <code>docs/screenshots/01-confirmation-consultation.png</code> (the confirmation email)</em><br>
-  <em>Screenshot to add: <code>docs/screenshots/04-reminder-24h.png</code> (the 24-hour reminder)</em>
+  <img src="docs/screenshots/01-confirmation-consultation.png" alt="Confirmation email with invite.ics attachment and Add to Calendar button" width="400">
+  <img src="docs/screenshots/04-reminder-24h.png" alt="24-hour reminder email with appointment details and one-click change links" width="400">
 </p>
 <p align="center">The confirmation carries <code>invite.ics</code>. Every customer email has a Reschedule button and a Cancel link.</p>
 
-The screenshots will show the real pages and templates, rendered with sample data in `America/New_York`. On the email screenshots, the strip at the top shows the subject, sender, recipient, Mailtrap category and attachment; it isn't part of the email. Every email also has a plain-text version.
+<p align="center">
+  <img src="docs/screenshots/page-4-reschedule.png" alt="Reschedule slot picker with the original appointment slot highlighted" width="400">
+  <img src="docs/screenshots/06-rescheduled.png" alt="Rescheduled notification email with updated time and revised calendar event" width="400">
+</p>
+<p align="center">Rescheduling moves the calendar event seamlessly using the same UID with an incremented SEQUENCE.</p>
+
+The screenshots show the real pages and templates, rendered with sample data in `America/New_York`. On the email screenshots, the strip at the top shows the subject, sender, recipient, Mailtrap category and attachment; it isn't part of the email. Every email also has a plain-text version.
 
 ## Booking rules
 
