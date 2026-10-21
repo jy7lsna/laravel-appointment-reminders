@@ -109,12 +109,12 @@ sequenceDiagram
     B->>B: validate (FormRequest), throttle 10/min
     B->>M: book()
     M->>M: take cache lock appointments:write
-    M->>D: BEGIN; re-check slot is still free
+    M->>D: BEGIN transaction, re-check slot is still free
     alt slot taken
         M-->>B: SlotUnavailableException
         B-->>C: back to the slot picker - That slot was just taken
     else free
-        M->>D: INSERT appointment (UTC, sequence 0, booked_at); COMMIT
+        M->>D: INSERT appointment (UTC, sequence 0, booked_at) then COMMIT
         M->>D: queue AppointmentConfirmed + OwnerBookingNotification
         Note over M,D: if queueing throws, log it - booking still succeeds
         B-->>C: redirect to signed confirmation page
