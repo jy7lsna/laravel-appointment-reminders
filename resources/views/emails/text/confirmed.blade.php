@@ -1,4 +1,4 @@
-You're booked, {!! $appointment->customer_name !!}!
+You're booked, {!! $appointment->customer_name !!}.
 
 Your appointment with {!! $businessName !!} is confirmed. A calendar invite (invite.ics) is attached.
 

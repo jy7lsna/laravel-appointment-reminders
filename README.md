@@ -2,65 +2,58 @@
   <img src="docs/banner.svg" alt="Laravel Appointment Reminders: a booking page with calendar invites, 24-hour and 2-hour reminders, and one-click cancel and reschedule, sent with the Mailtrap Email API" width="100%">
 </p>
 
-# Laravel Appointment Booking with Calendar Invites and Reminder Emails
+# Appointment Booking with Calendar Invites and Reminder Emails in Laravel (Mailtrap)
 
-Cut no-shows for any appointment-based business. This Laravel 12 app sends a confirmation with a calendar invite, automatic 24-hour and 2-hour reminders, and one-click cancel and reschedule links. Emails go through the Mailtrap Email API using Laravel's own Mail system and the official Mailtrap Laravel bridge.
+Cut no-shows for any appointment-based business. This Laravel 12 app lets customers book a slot on a public page, then sends a confirmation with a calendar invite, automatic 24-hour and 2-hour reminders, and one-click cancel and reschedule links. Emails go through the Mailtrap Email API using Laravel's own Mail system and the official Mailtrap Laravel bridge.
 
 <p>
   <img alt="PHP 8.3" src="https://img.shields.io/badge/PHP-8.3-777bb4?logo=php&logoColor=white">
   <img alt="Laravel 12" src="https://img.shields.io/badge/Laravel-12-ff2d20?logo=laravel&logoColor=white">
   <img alt="Mailtrap Email API" src="https://img.shields.io/badge/email-Mailtrap%20API-22d172">
-  <img alt="Calendar: iCalendar .ics" src="https://img.shields.io/badge/calendar-.ics%20invites-4338ca">
+  <img alt="Calendar: iCalendar .ics" src="https://img.shields.io/badge/calendar-.ics%20invites-0b63f6">
   <img alt="Tests: Pest" src="https://img.shields.io/badge/tests-Pest-f472b6">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-2457c5">
 </p>
 
-**Contents:** [Demo](#demo) · [How it works](#how-it-works) · [Features](#features) · [Stack](#stack) · [Prerequisites](#prerequisites) · [Mailtrap setup](#mailtrap-setup) · [Quick start](#quick-start) · [Booking rules](#booking-rules) · [Reminder rules](#reminder-rules) · [Calendar invites](#calendar-invites) · [Cancel and reschedule links](#cancel-and-reschedule-links) · [Key integration points](#key-integration-points) · [Failure behavior](#failure-behavior) · [Configuration](#configuration) · [Scheduling and the queue](#scheduling-and-the-queue) · [Time zones](#time-zones) · [Data model](#data-model) · [Project structure](#project-structure) · [Tests](#tests) · [Limitations](#limitations) · [FAQ](#faq)
+## The problem
+
+No-shows cost appointment businesses real money, and most of them are not rude customers. They forgot, they never got the details, or they could not easily move the booking. Building the fix is harder than it looks: two customers book the same slot, a calendar invite arrives as a loose attachment instead of an event, a reschedule adds a second event next to the old one, a reminder goes out twice, and a failed email breaks the booking itself.
+
+## What this repo solves
+
+A small, complete Laravel app that handles each of those details, ready to read, run and copy into your own project.
+
+| Problem | How this repo handles it |
+| --- | --- |
+| Double bookings | A cache lock plus a transaction that re-checks the slot before saving. The second customer gets a clear message. |
+| Customers forget the appointment | A confirmation with an `.ics` invite, then a 24-hour and a 2-hour reminder |
+| Reminders sent twice or at the wrong time | Time windows plus an atomic database claim, so a late scheduler still sends the right one, once |
+| Rescheduling creates duplicate calendar events | The same invite `UID` with a higher `SEQUENCE`, so calendars move or remove the existing event |
+| Customers can't change their booking | Signed cancel and reschedule links in every email, valid until the appointment starts |
+| A failed email breaks the booking | Emails are queued after commit with retries. A queueing failure is logged and the booking still succeeds. |
+| Wrong times across time zones and daylight saving | Everything is stored in UTC and shown in the business time zone, with DST-safe slot generation |
+
+**Contents:** [Demo](#demo) · [How it works](#how-it-works) · [Features](#features) · [Stack](#stack) · [Prerequisites](#prerequisites) · [Mailtrap setup](#mailtrap-setup) · [Quick start](#quick-start) · [Screenshots](#screenshots) · [Booking rules](#booking-rules) · [Reminder rules](#reminder-rules) · [Calendar invites](#calendar-invites) · [Cancel and reschedule links](#cancel-and-reschedule-links) · [Key integration points](#key-integration-points) · [Failure behavior](#failure-behavior) · [Security design](#security-design) · [Configuration](#configuration) · [Scheduling and the queue](#scheduling-and-the-queue) · [Time zones](#time-zones) · [Data model](#data-model) · [Project structure](#project-structure) · [Tests](#tests) · [Deploying](#deploying-to-production) · [Limitations](#limitations) · [FAQ](#faq)
 
 ## Demo
 
-| Booking page | Confirmation email |
-| --- | --- |
-| <img src="docs/screenshots/page-2-booking.png" alt="Booking page for a 30-minute Consultation: date picker for the next 30 days, free 30-minute slots from 9:00 AM to 5:30 PM, and name, email and phone fields" width="420"> | <img src="docs/screenshots/01-confirmation-consultation.png" alt="Confirmation email: Consultation on Fri 23 Oct, 3:00 PM EDT, with invite.ics attached and Reschedule and Cancel buttons" width="420"> |
-| **24-hour reminder** | **Rescheduled email** |
-| <img src="docs/screenshots/04-reminder-24h.png" alt="Reminder email: your appointment is tomorrow, with Reschedule and Cancel buttons" width="420"> | <img src="docs/screenshots/06-rescheduled.png" alt="Rescheduled email: old time struck through, new time Saturday 24 October 12:00 PM EDT, updated invite.ics attached" width="420"> |
-| **Reschedule page** | **Owner notification** |
-| <img src="docs/screenshots/page-4-reschedule.png" alt="Reschedule page: pick a new date and time, with the current slot marked" width="420"> | <img src="docs/screenshots/09-owner-rescheduled.png" alt="Owner email: booking rescheduled from Friday 3:00 PM to Saturday 12:00 PM EDT, with the customer's email and phone, reply-to set to the customer" width="420"> |
-
-<details>
-<summary><b>All emails and pages</b></summary>
-
-| Email | Screenshot |
-| --- | --- |
-| Confirmation, one per service | [Consultation](docs/screenshots/01-confirmation-consultation.png) · [Session](docs/screenshots/02-confirmation-session.png) · [Quick Call](docs/screenshots/03-confirmation-quick-call.png) |
-| Reminders | [24 hours before](docs/screenshots/04-reminder-24h.png) · [2 hours before](docs/screenshots/05-reminder-2h.png) |
-| Changes | [Rescheduled](docs/screenshots/06-rescheduled.png) · [Cancelled](docs/screenshots/07-cancelled.png) |
-| Owner notifications | [New booking](docs/screenshots/08-owner-booked.png) · [Rescheduled](docs/screenshots/09-owner-rescheduled.png) · [Cancelled](docs/screenshots/10-owner-cancelled.png) |
-| Pages | [Services](docs/screenshots/page-1-services.png) · [Booking](docs/screenshots/page-2-booking.png) · [Your appointment](docs/screenshots/page-3-appointment.png) · [Reschedule](docs/screenshots/page-4-reschedule.png) · [Cancel](docs/screenshots/page-5-cancel.png) |
-
-</details>
-
-The screenshots show the real templates, rendered with sample data in `America/New_York`. On the email screenshots, the strip at the top shows the subject, sender, recipient, Mailtrap category and attachment; it isn't part of the email. Every email also has a plain-text version.
-
-A real reminder run looks like this:
+A real reminder run looks like this (one confirmed appointment that starts in 23 hours):
 
 ```text
 $ php artisan appointments:send-reminders --dry-run
-Dry run at 2026-10-15T06:52:51Z – nothing will be sent.
-Would send 24h reminder → Demo Customer (you@example.com) for Fri 16 Oct, 1:30 AM EDT [58306059-2030-4f63-bb28-76425b8e4644]
-Would send 2h reminder → Demo Customer (you@example.com) for Thu 15 Oct, 4:30 AM EDT [e81d75d2-e8bc-41e2-8a09-a3a6dacbe9f1]
-2 reminder(s) due.
+Dry run at 2026-10-21T06:50:32Z – nothing will be sent.
+Would send 24h reminder → John Miller (john.miller@example.com) for Thu 22 Oct, 1:50 AM EDT [b409b7c1-bab0-4efe-ab2f-919593ba7c8f]
+1 reminder(s) due.
 
 $ php artisan appointments:send-reminders
-Queued 24h reminder → Demo Customer (you@example.com) for Fri 16 Oct, 1:30 AM EDT [58306059-2030-4f63-bb28-76425b8e4644]
-Queued 2h reminder → Demo Customer (you@example.com) for Thu 15 Oct, 4:30 AM EDT [e81d75d2-e8bc-41e2-8a09-a3a6dacbe9f1]
-2 reminder(s) queued.
+Queued 24h reminder → John Miller (john.miller@example.com) for Thu 22 Oct, 1:50 AM EDT [b409b7c1-bab0-4efe-ab2f-919593ba7c8f]
+1 reminder(s) queued.
 
 $ php artisan appointments:send-reminders
 0 reminder(s) queued.
 ```
 
-The second real run sends nothing: each reminder is claimed in the database before it's queued. A third appointment in that run was booked only 10 hours ahead, so it gets no 24h reminder at all, only the 2h one later.
+The second real run sends nothing: each reminder is claimed in the database before it's queued. An appointment booked less than 24 hours ahead gets no 24h reminder at all, only the 2h one later. See [Screenshots](#screenshots) for the booking pages and the emails.
 
 ## How it works
 
@@ -92,7 +85,20 @@ flowchart TB
 | Reminders | Window check, atomic claim, queue | `app/Console/Commands/SendAppointmentReminders.php` |
 | Schedule | Every 5 minutes, without overlapping | `routes/console.php` |
 | Pages | Public booking, signed cancel and reschedule | `app/Http/Controllers/`, `resources/views/` |
-| Templates | HTML + plain text for each email | `resources/views/emails/` |
+| Templates | HTML and plain text for each email | `resources/views/emails/` |
+
+### Booking to reminders
+
+1. The customer opens `GET /book/{service}`, picks a day and a time, and fills in name, email and phone.
+2. The browser posts the form to `POST /book/{service}`. The request is validated and throttled to 10 a minute per IP.
+3. `AppointmentManager::book()` takes the cache lock `appointments:write` and re-checks that the slot is still free inside a transaction.
+4. If it's free, the appointment is saved in UTC with `sequence` 0 and the transaction commits. If not, the customer goes back to the picker with a clear message.
+5. After the commit, the confirmation (with `invite.ics`) and the owner notification are queued. If queueing throws, it is logged and the booking still succeeds.
+6. The customer lands on a signed confirmation page.
+7. `queue:work` picks up the jobs and sends them through the Mailtrap bridge, with 3 tries.
+8. Mailtrap delivers the email. The customer can use its signed links to cancel or reschedule.
+9. Every 5 minutes the scheduler runs `appointments:send-reminders`. For each reminder that is due it claims the row with a conditional `UPDATE … WHERE reminder_*_sent_at IS NULL`.
+10. Only the run that changed the row queues the reminder, so it is never sent twice.
 
 ### One booking, step by step
 
@@ -152,7 +158,7 @@ sequenceDiagram
 
 ## Features
 
-- **Public booking page.** Customers pick a service, a date from the next 30 days and a free slot, then enter their name, email and phone. Closed days show a short message instead of slots.
+- **Public booking page.** Customers pick a service, a date from the next 30 days and a free time, then enter their name, email and phone. Closed days show a short message instead of times.
 - **Real availability.** Slots follow business hours, a fixed interval, the service's length (it must end by closing time), a minimum notice period and every confirmed appointment, across all services.
 - **No double booking.** An atomic cache lock plus a transaction that re-checks the slot before saving. The second customer gets "That slot was just taken, please pick another."
 - **Confirmation with a calendar invite.** `invite.ics` (`METHOD:REQUEST`) shows an "Add to calendar" button in Gmail, Apple Mail and Outlook.
@@ -161,15 +167,22 @@ sequenceDiagram
 - **Owner notifications.** New, rescheduled (old → new time) and cancelled bookings, with the customer as reply-to.
 - **Timezone-correct.** Everything is stored in UTC and shown in the business timezone, with `EDT`/`EST` style abbreviations. Daylight saving changes are handled.
 - **One Mailtrap category per email type,** so you can split delivery stats in Mailtrap.
-- **Email never blocks a booking.** Emails are queued with 3 tries; a failure to queue one is logged, and the booking still succeeds.
-- **Fully tested without a network.** 86 Pest tests with `Mail::fake()`, `Queue::fake()` and time travel.
+- **Email never blocks a booking.** Emails are queued with 3 tries. A failure to queue one is logged, and the booking still succeeds.
+- **A polished, accessible booking UI.**
+  - a blue page with a navy side panel that shows the service, its length and the location
+  - a scrolling date strip with closed days greyed out, and time chips for the free slots
+  - a two-column form for name, phone and email, with errors shown under each field
+  - matching confirmation, reschedule and cancel pages
+  - plain, mostly-text emails with one button
+  - keyboard focus styles, a disabled button while submitting, and layouts that work down to a phone
+- **Fully tested without a network.** 87 Pest tests with `Mail::fake()`, `Queue::fake()` and time travel.
 
 ## Stack
 
 | | |
 | --- | --- |
 | Language | PHP 8.3 |
-| Framework | Laravel 12, Blade views, one plain CSS file (no JS framework, no Vite build needed) |
+| Framework | Laravel 12, Blade views, one plain CSS file and a few lines of inline script (no JS framework, no Vite build needed) |
 | Database and queue | SQLite, `database` queue driver |
 | Calendar | [`spatie/icalendar-generator`](https://github.com/spatie/icalendar-generator) |
 | Email | [`railsware/mailtrap-php`](https://github.com/railsware/mailtrap-php) with its Laravel bridge, plus `symfony/http-client` and `nyholm/psr7` |
@@ -233,6 +246,32 @@ Open **http://localhost:8000**, pick a service and a slot, and book with your ow
 | Consultation | 30 min |
 | Session | 60 min |
 
+### What you'll see in the terminal
+
+**The server and the scheduler started**
+
+```text
+$ php artisan serve
+
+   INFO  Server running on [http://127.0.0.1:8000].
+
+  Press Ctrl+C to stop the server
+
+$ php artisan schedule:work
+
+   INFO  Running scheduled tasks.
+```
+
+**The queue worker after a booking:** the confirmation to the customer and the notification to the owner.
+
+```text
+$ php artisan queue:work
+  2026-10-21 06:50:29 App\Mail\AppointmentConfirmed .................. RUNNING
+  2026-10-21 06:50:29 App\Mail\AppointmentConfirmed ............. 25.77ms DONE
+  2026-10-21 06:50:29 App\Mail\OwnerBookingNotification .............. RUNNING
+  2026-10-21 06:50:29 App\Mail\OwnerBookingNotification .......... 1.46ms DONE
+```
+
 **Force the reminders to send** (for testing) by moving your latest booking into a reminder window:
 
 ```bash
@@ -244,6 +283,22 @@ php artisan appointments:send-reminders
 php artisan tinker --execute='App\Models\Appointment::latest("id")->first()->update(["starts_at"=>now()->addMinutes(90),"ends_at"=>now()->addMinutes(120),"reminder_2h_sent_at"=>null]);'
 php artisan appointments:send-reminders
 ```
+
+## Screenshots
+
+<p align="center">
+  <em>Screenshot to add: <code>docs/screenshots/page-2-booking.png</code> (the booking page with a date and time picked)</em><br>
+  <em>Screenshot to add: <code>docs/screenshots/page-3-appointment.png</code> (the "You're booked!" page)</em>
+</p>
+<p align="center">Pick a day and a time, enter your details, and land on a confirmation page with a Reschedule and a Cancel button.</p>
+
+<p align="center">
+  <em>Screenshot to add: <code>docs/screenshots/01-confirmation-consultation.png</code> (the confirmation email)</em><br>
+  <em>Screenshot to add: <code>docs/screenshots/04-reminder-24h.png</code> (the 24-hour reminder)</em>
+</p>
+<p align="center">The confirmation carries <code>invite.ics</code>. Every customer email has a Reschedule button and a Cancel link.</p>
+
+The screenshots will show the real pages and templates, rendered with sample data in `America/New_York`. On the email screenshots, the strip at the top shows the subject, sender, recipient, Mailtrap category and attachment; it isn't part of the email. Every email also has a plain-text version.
 
 ## Booking rules
 
@@ -306,26 +361,26 @@ Calendar apps match an invite to an existing event by its **UID**, then use **ME
 - `DTSTART`/`DTEND` are UTC with a `Z` suffix (`DTSTART:20261023T190000Z`). Every client converts them to the viewer's own time, so no `VTIMEZONE` block is needed.
 - The invite also carries `ORGANIZER` (`MAIL_FROM_ADDRESS`, named after `BUSINESS_NAME`), `ATTENDEE;RSVP=FALSE` (the customer), `LOCATION` (`BUSINESS_ADDRESS`), `DTSTAMP`, `LAST-MODIFIED`, and a `DESCRIPTION` with the cancel and reschedule links.
 
-A confirmation's invite, as generated (line folding removed, signatures shortened):
+A confirmation's invite, as generated (line folding removed, signatures shortened). With no `BUSINESS_NAME` set, the name falls back to `APP_NAME`:
 
 ```text
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Acme Studio//Appointments//EN
+PRODID:-//Appointment Reminders//Appointments//EN
 METHOD:REQUEST
 CALSCALE:GREGORIAN
 BEGIN:VEVENT
-UID:6d09bda0-d2f0-4120-b635-93c6d45bf8e4@localhost
-DTSTAMP:20261015T065821Z
-DTSTART:20261023T190000Z
-DTEND:20261023T193000Z
-SUMMARY:Consultation with Acme Studio
-DESCRIPTION:Consultation with Acme Studio\nWhen: Friday 23 October 2026\, 3:00 PM EDT\n\nNeed to cancel? http://localhost:8000/appointments/6d09bda0-d2f0-4120-b635-93c6d45bf8e4/cancel?expires=1792782000&signature=886b5a…\nNeed to reschedule? http://localhost:8000/appointments/6d09bda0-d2f0-4120-b635-93c6d45bf8e4/reschedule?expires=1792782000&signature=87b9ad…
+UID:16f10d82-66a1-47b5-a3a1-627ea0c7cf8a@localhost
+DTSTAMP:20261021T065255Z
+DTSTART:20261022T143000Z
+DTEND:20261022T150000Z
+SUMMARY:Consultation with Appointment Reminders
+DESCRIPTION:Consultation with Appointment Reminders\nWhen: Thursday 22 October 2026\, 10:30 AM EDT\n\nNeed to cancel? http://localhost:8000/appointments/16f10d82-66a1-47b5-a3a1-627ea0c7cf8a/cancel?expires=1792679400&signature=365646…\nNeed to reschedule? http://localhost:8000/appointments/16f10d82-66a1-47b5-a3a1-627ea0c7cf8a/reschedule?expires=1792679400&signature=886b5a…
 STATUS:CONFIRMED
 LOCATION:350 5th Ave\, New York\, NY 10118\, USA
-ORGANIZER;CN=Acme Studio:MAILTO:appointments@your-verified-domain.com
+ORGANIZER;CN=Appointment Reminders:MAILTO:appointments@your-verified-domain.com
 SEQUENCE:0
-LAST-MODIFIED:20261015T065821Z
+LAST-MODIFIED:20261021T065132Z
 ATTENDEE;CN=John Miller;ROLE=REQ-PARTICIPANT;RSVP=FALSE:MAILTO:john.miller@example.com
 END:VEVENT
 END:VCALENDAR
@@ -475,6 +530,28 @@ Mail::to($appointment->customer_email)->queue(new AppointmentReminder($appointme
 | `403: Demo domains can only be used to send emails to account owners` | You're on `demomailtrap.co` and the recipient isn't the Mailtrap account owner. See [Mailtrap setup](#mailtrap-setup). |
 | `403: Sending usage of this domain has reached its limit` | The demo domain's allowance is used up. Verify your own domain. |
 
+## Security design
+
+| Threat | Mitigation |
+| --- | --- |
+| Someone changing another customer's booking | Cancel and reschedule need a signed URL. Tampering with the id, the expiry or the signature returns `403`. |
+| Links that live forever | Signed links expire when the appointment starts. After that, a short message is shown and nothing can be changed. |
+| Email scanners using up a cancel link | `GET` only shows a confirmation page. Cancelling needs a `POST`. |
+| Double booking by two requests at once | A cache lock plus a transaction that re-checks the slot, so only one request wins |
+| A hand-crafted time in the form | The submitted `starts_at` must be one of the slots the server generates at save time |
+| Form spam | `throttle:10,1` on every `POST`, and server-side validation of every field |
+| Cross-site forged requests | Laravel's CSRF token on every form |
+| Cross-site scripting | Blade escapes all output, and the calendar library escapes the `.ics` text |
+| A reminder sent twice | An atomic conditional `UPDATE` claims each reminder before it is queued |
+| Leaking secrets | The Mailtrap key lives only in `.env`, which is git-ignored |
+
+**Trade-offs to know about:**
+
+- **The link is the credential.** There are no customer accounts, so anyone who has a forwarded email can cancel or reschedule until the appointment starts.
+- **Throttling is per IP.** `throttle:10,1` limits one address. Behind a proxy, configure trusted proxies so Laravel sees the real client IP.
+- **No bounce handling.** Mailtrap webhooks aren't processed, so a bad address keeps getting emails.
+- **The phone number is required but unchecked.** It is stored and shown to the owner, and never verified.
+
 ## Configuration
 
 ### Environment variables
@@ -488,12 +565,12 @@ Copy `.env.example` to `.env`. Mailtrap is configured **only** through these var
 | `MAILTRAP_API_KEY` | yes | Mailtrap API token with sending access |
 | `MAILTRAP_INBOX_ID` | sandbox only | Your sandbox inbox ID |
 | `MAIL_FROM_ADDRESS` | yes | Sender, on a verified domain (or `demomailtrap.co` for testing). Also the invite's ORGANIZER. |
-| `MAIL_FROM_NAME` | | Sender name, usually your business name |
+| `MAIL_FROM_NAME` | | Sender name. Defaults to `APP_NAME`. |
 | `APP_URL` | yes | Base for signed links; its host is also the iCal UID's domain. Default `http://localhost:8000`. |
 | `APP_TIMEZONE` | | Keep `UTC`. All storage is UTC. |
-| `BUSINESS_NAME` | | Shown on pages, in emails and in the invite title |
+| `BUSINESS_NAME` | | Shown on pages, in emails and in the invite title. Defaults to `APP_NAME`. |
 | `BUSINESS_TIMEZONE` | | Default `America/New_York`. Any IANA zone, e.g. `America/Chicago`, `America/Los_Angeles`. |
-| `BUSINESS_ADDRESS` | | Email footer and the invite's LOCATION |
+| `BUSINESS_ADDRESS` | | Email footer, the booking page's location and the invite's LOCATION. The page shows "Video call" when it's empty. |
 | `OWNER_EMAIL` | | Receives owner notifications. Empty turns them off. |
 | `BOOKING_SLOT_INTERVAL_MINUTES` | | Default `30` |
 | `BOOKING_MIN_NOTICE_MINUTES` | | Default `60` |
@@ -599,8 +676,9 @@ Example with `BUSINESS_TIMEZONE=America/New_York`:
 ├── docs/                                banner and screenshots
 ├── public/css/app.css                   the only stylesheet
 ├── resources/views/
-│   ├── layouts/app.blade.php
-│   ├── services/, booking/, appointments/, partials/
+│   ├── layouts/app.blade.php            page shell, footer, submit-button script
+│   ├── services/, booking/, appointments/
+│   ├── partials/                        aside (side panel), art (illustration), date-picker, slot-picker
 │   ├── emails/                          layout, html/, text/, partials/
 │   └── errors/                          403, 404, 419, 429
 ├── routes/
@@ -615,7 +693,7 @@ Example with `BUSINESS_TIMEZONE=America/New_York`:
 ./vendor/bin/pest      # or: php artisan test
 ```
 
-The suite has 86 tests. They need no `.env` values, no credentials and no network: `phpunit.xml` sets test values, mail goes to `Mail::fake()` or Laravel's in-memory `array` mailer, and time is controlled with `$this->travelTo()`. They pin `BUSINESS_TIMEZONE=Asia/Kolkata` so expected times never depend on your `.env`; a separate test covers `America/New_York` across a DST change.
+The suite has 87 tests. They need no `.env` values, no credentials and no network: `phpunit.xml` sets test values, mail goes to `Mail::fake()` or Laravel's in-memory `array` mailer, and time is controlled with `$this->travelTo()`. They pin `BUSINESS_TIMEZONE=Asia/Kolkata` so expected times never depend on your `.env`; a separate test covers `America/New_York` across a DST change.
 
 | File | Covers |
 | --- | --- |
@@ -628,6 +706,16 @@ The suite has 86 tests. They need no `.env` values, no credentials and no networ
 | `TimezoneTest.php` | UTC in the database, business time in the email subject and body |
 | `MailablesTest.php` | The Mailtrap category on all 8 email variants (exactly one each), HTML + text bodies, `tries`/`backoff`/after-commit on the queued job (`Queue::fake()`), `failed()` logging, owner reply-to, no owner email when `OWNER_EMAIL` is empty |
 | `IcsBuilderTest.php` | Every invite property, CANCEL output, UID never changes, `SEQUENCE:0` on a freshly created appointment |
+
+## Deploying to production
+
+- **Environment:** set `APP_ENV=production`, `APP_DEBUG=false`, a generated `APP_KEY` and `APP_URL` to your real `https://` address. Signed links and the invite's UID host come from `APP_URL`.
+- **Mailtrap:** verify your sending domain and set `MAIL_FROM_ADDRESS` on it. Keep `MAILTRAP_API_KEY` in the server's environment, not in the repo.
+- **Build and migrate:** run `composer install --no-dev --optimize-autoloader`, `php artisan migrate --force`, `php artisan db:seed --force` once, and `php artisan config:cache route:cache view:cache`.
+- **Two processes:** keep the scheduler running from cron and a queue worker running under Supervisor, see [Scheduling and the queue](#scheduling-and-the-queue). Run `php artisan queue:restart` after every deploy.
+- **Proxy:** behind nginx or a load balancer, configure Laravel's trusted proxies so the per-IP throttle sees the real client IP.
+- **Disk:** SQLite needs a persistent disk. To run several servers, move to MySQL or PostgreSQL and use Redis for the cache lock and the queue.
+- **Writable folders:** `storage/` and `bootstrap/cache/` must be writable by the web user.
 
 ## Limitations
 
@@ -645,26 +733,30 @@ The suite has 86 tests. They need no `.env` values, no credentials and no networ
 
 ### How do I send appointment reminder emails in Laravel?
 
-Store the start time in UTC with a nullable `reminder_*_sent_at` column per reminder. Schedule an Artisan command every few minutes in `routes/console.php`. The command selects appointments whose reminder window is open, for example `starts_at − 24h ≤ now < starts_at − 2h`, claims each one with a conditional `UPDATE … WHERE reminder_24h_sent_at IS NULL`, and queues a Mailable only when exactly one row changed. Windows cover late scheduler runs, and the claim prevents duplicates. See [Reminder rules](#reminder-rules).
+Store the start time in UTC with a nullable `reminder_*_sent_at` column per reminder, and schedule an Artisan command every few minutes. It selects appointments whose reminder window is open, claims each one with a conditional `UPDATE … WHERE reminder_24h_sent_at IS NULL`, and queues a Mailable only when exactly one row changed.
+
+Windows cover late scheduler runs, and the claim prevents duplicates. See [Reminder rules](#reminder-rules).
 
 ### How do I attach a calendar invite (.ics) to a Laravel email?
 
-Build the iCalendar text (here with `spatie/icalendar-generator`) and return it from the Mailable's `attachments()` method with the calendar MIME type:
+Build the iCalendar text, here with `spatie/icalendar-generator`, and return it from the Mailable's `attachments()` method with the calendar MIME type:
 
 ```php
 Attachment::fromData(fn () => $ics, 'invite.ics')
     ->withMime('text/calendar; charset=UTF-8; method=REQUEST');
 ```
 
-Include `METHOD:REQUEST`, a stable `UID`, a `SEQUENCE`, UTC `DTSTART`/`DTEND`, an `ORGANIZER` and an `ATTENDEE` so mail clients show it as an invite. See [Calendar invites](#calendar-invites).
+Include `METHOD:REQUEST`, a stable `UID`, a `SEQUENCE`, UTC times, an `ORGANIZER` and an `ATTENDEE`, so mail clients show it as an invite. See [Calendar invites](#calendar-invites).
 
 ### How do I update a calendar event after the customer reschedules?
 
-Send a new `.ics` with the **same UID**, a **higher SEQUENCE** and `METHOD:REQUEST` with the new times; the calendar moves the existing event. To remove it, send `METHOD:CANCEL` and `STATUS:CANCELLED` with the same UID and a higher SEQUENCE. This app generates the UID once per appointment and increments `sequence` on every reschedule and cancellation.
+Send a new `.ics` with the same UID, a higher SEQUENCE and `METHOD:REQUEST` with the new times, and the calendar moves the existing event. To remove it, send `METHOD:CANCEL` and `STATUS:CANCELLED` with the same UID and a higher SEQUENCE.
+
+This app creates the UID once per appointment and increments `sequence` on every reschedule and cancellation.
 
 ### How do I use Mailtrap as the mail driver in Laravel?
 
-Install the SDK with a PSR-18 HTTP client: `composer require railsware/mailtrap-php symfony/http-client nyholm/psr7`. Add `'mailtrap-sdk' => ['transport' => 'mailtrap-sdk']` to the `mailers` in `config/mail.php`, and set:
+Install the SDK with a PSR-18 client: `composer require railsware/mailtrap-php symfony/http-client nyholm/psr7`. Add `'mailtrap-sdk' => ['transport' => 'mailtrap-sdk']` to the `mailers` in `config/mail.php`, then set these variables:
 
 ```dotenv
 MAIL_MAILER="mailtrap-sdk"
@@ -673,11 +765,13 @@ MAILTRAP_API_KEY="YOUR_API_KEY_HERE"
 MAIL_FROM_ADDRESS="you@your-verified-domain.com"
 ```
 
-Every `Mail::to()->send()` and `->queue()` then goes through the Mailtrap Email API. Add a `Mailtrap\EmailHeader\CategoryHeader` to tag emails by type.
+Every `Mail::to()->send()` and `->queue()` now goes through the Mailtrap Email API.
 
 ### Why do my cancel and reschedule links return 403?
 
-Signed URLs include the host. If `APP_URL` is `http://localhost:8000` but you open the site at `http://127.0.0.1:8000`, links from emails won't match. Use the same address in both places. Links also stop working, on purpose, once the appointment starts.
+Signed URLs include the host. If `APP_URL` is `http://localhost:8000` but you open the site at `http://127.0.0.1:8000`, links from emails won't match. Use the same address in both places.
+
+Links also stop working, on purpose, once the appointment starts.
 
 ### Why didn't my test booking get a 24-hour reminder?
 
@@ -685,7 +779,9 @@ Bookings made less than 24 hours before the appointment skip the 24h reminder an
 
 ### Why does Mailtrap say "Demo domains can only be used to send emails to account owners"?
 
-`demomailtrap.co` only delivers to the email address that owns the Mailtrap account behind your API token. Book with that address, use the sandbox, or verify your own domain. See [Mailtrap setup](#mailtrap-setup).
+`demomailtrap.co` only delivers to the email address that owns the Mailtrap account behind your API token. Book with that address, use the sandbox, or verify your own domain.
+
+See [Mailtrap setup](#mailtrap-setup).
 
 ## License
 

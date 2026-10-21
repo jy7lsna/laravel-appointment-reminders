@@ -30,7 +30,7 @@
       <rect x="346" y="-10" width="10" height="28" rx="5" fill="#c7d2fe"/>
       <text x="24" y="37" fill="#ffffff" font-size="18" font-weight="700">FRI 23 OCT · 3:00 PM EDT</text>
 
-      <text x="24" y="96" fill="#18181b" font-size="22" font-weight="700">Consultation with Acme Studio</text>
+      <text x="24" y="96" fill="#18181b" font-size="22" font-weight="700">Consultation</text>
       <text x="24" y="126" fill="#52525b" font-size="16">📎 invite.ics · METHOD:REQUEST · SEQUENCE:0</text>
 
       <rect x="24" y="152" width="96" height="36" rx="18" fill="#eef0ff"/>

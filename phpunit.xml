@@ -20,8 +20,6 @@
         <env name="APP_URL" value="https://booking.test"/>
         <env name="APP_TIMEZONE" value="UTC"/>
         <env name="MAIL_FROM_ADDRESS" value="appointments@booking.test"/>
-        <env name="MAIL_FROM_NAME" value="Acme Studio"/>
-        <env name="BUSINESS_NAME" value="Acme Studio"/>
         <env name="BUSINESS_TIMEZONE" value="Asia/Kolkata"/>
         <env name="BUSINESS_ADDRESS" value="12 MG Road, Bengaluru"/>
         <env name="OWNER_EMAIL" value="owner@booking.test"/>
