@@ -49,17 +49,17 @@ Customers book on a public page. Every change (book, reschedule, cancel) saves t
 
 ```mermaid
 flowchart TB
-    customer([Customer]) -->|"GET /book/{service}: pick a slot"| web["Booking pages<br/>(Blade)"]
-    web -->|"POST: lock, re-check, save"| db[("SQLite<br/>appointments, jobs")]
-    web -->|"queue after commit"| q[["database queue"]]
-    sched(["schedule:work / cron<br/>every 5 min"]) --> cmd["appointments:send-reminders"]
-    cmd <-->|"due appointments,<br/>atomic claim"| db
-    cmd -->|"queue reminder"| q
-    q --> worker["queue:work"]
-    worker -->|"Mailable via mailtrap-sdk"| mt["Mailtrap<br/>Email API"]
-    mt -->|"email + invite.ics"| customer
-    mt -->|"owner notification"| owner([Owner])
-    customer -->|"signed link: cancel / reschedule"| web
+    customer([Customer]) -->|GET /book/service: pick a slot| web["Booking pages (Blade)"]
+    web -->|POST: lock, re-check, save| db[(SQLite - appointments, jobs)]
+    web -->|queue after commit| q[[database queue]]
+    sched(["schedule:work / cron every 5 min"]) --> cmd[appointments:send-reminders]
+    cmd <-->|due appointments, atomic claim| db
+    cmd -->|queue reminder| q
+    q --> worker[queue:work]
+    worker -->|Mailable via mailtrap-sdk| mt["Mailtrap Email API"]
+    mt -->|email + invite.ics| customer
+    mt -->|owner notification| owner([Owner])
+    customer -->|signed link: cancel / reschedule| web
 ```
 
 | Part | What it does | Where |
@@ -108,15 +108,15 @@ sequenceDiagram
     C->>B: POST /book/consultation (name, email, phone, starts_at)
     B->>B: validate (FormRequest), throttle 10/min
     B->>M: book()
-    M->>M: take cache lock "appointments:write"
+    M->>M: take cache lock appointments:write
     M->>D: BEGIN; re-check slot is still free
     alt slot taken
         M-->>B: SlotUnavailableException
-        B-->>C: back to the slot picker: "That slot was just taken, please pick another."
+        B-->>C: back to the slot picker - That slot was just taken
     else free
         M->>D: INSERT appointment (UTC, sequence 0, booked_at); COMMIT
         M->>D: queue AppointmentConfirmed + OwnerBookingNotification
-        Note over M,D: if queueing throws, log it – the booking still succeeds
+        Note over M,D: if queueing throws, log it - booking still succeeds
         B-->>C: redirect to signed confirmation page
         Q->>D: pick up jobs
         Q->>T: confirmation (+ invite.ics) and owner email
@@ -132,22 +132,22 @@ sequenceDiagram
     participant D as SQLite
     participant Q as Queue
 
-    S->>R: every 5 minutes (or by hand, with --dry-run)
-    R->>D: confirmed appointments with starts_at in the 24h window, reminder_24h_sent_at NULL
-    R->>R: drop ones booked or rescheduled less than 24h ahead
-    R->>D: confirmed appointments with starts_at in the 2h window, reminder_2h_sent_at NULL
+    S->>R: every 5 minutes (or --dry-run)
+    R->>D: confirmed appts in 24h window, reminder_24h_sent_at NULL
+    R->>R: drop ones booked less than 24h ahead
+    R->>D: confirmed appts in 2h window, reminder_2h_sent_at NULL
     loop each due reminder
-        R->>D: UPDATE … SET reminder_X_sent_at = now WHERE id = ? AND reminder_X_sent_at IS NULL
+        R->>D: UPDATE SET reminder_X_sent_at = now WHERE id = ? AND reminder_X_sent_at IS NULL
         alt 0 rows changed
             R->>R: another run claimed it, skip
         else 1 row changed
             R->>Q: queue AppointmentReminder
             alt queueing fails
-                R->>D: set reminder_X_sent_at back to NULL (next run retries)
+                R->>D: set reminder_X_sent_at back to NULL
             end
         end
     end
-    R->>S: "N reminder(s) queued."
+    R->>S: N reminders queued
 ```
 
 ## Features
