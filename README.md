@@ -33,7 +33,7 @@ A small, complete Laravel app that handles each of those details, ready to read,
 | A failed email breaks the booking | Emails are queued after commit with retries. A queueing failure is logged and the booking still succeeds. |
 | Wrong times across time zones and daylight saving | Everything is stored in UTC and shown in the business time zone, with DST-safe slot generation |
 
-**Contents:** [Demo](#demo) · [How it works](#how-it-works) · [Features](#features) · [Stack](#stack) · [Prerequisites](#prerequisites) · [Mailtrap setup](#mailtrap-setup) · [Quick start](#quick-start) · [Screenshots](#screenshots) · [Booking rules](#booking-rules) · [Reminder rules](#reminder-rules) · [Calendar invites](#calendar-invites) · [Cancel and reschedule links](#cancel-and-reschedule-links) · [Key integration points](#key-integration-points) · [Failure behavior](#failure-behavior) · [Security design](#security-design) · [Configuration](#configuration) · [Scheduling and the queue](#scheduling-and-the-queue) · [Time zones](#time-zones) · [Data model](#data-model) · [Project structure](#project-structure) · [Tests](#tests) · [Deploying](#deploying-to-production) · [Limitations](#limitations) · [FAQ](#faq)
+**Contents:** [Demo](#demo) · [How it works](#how-it-works) · [Features](#features) · [Stack](#stack) · [Prerequisites](#prerequisites) · [Mailtrap setup](#mailtrap-setup) · [Quick start](#quick-start) · [Screenshots](#screenshots) · [Booking rules](#booking-rules) · [Reminder rules](#reminder-rules) · [Calendar invites](#calendar-invites) · [Cancel and reschedule links](#cancel-and-reschedule-links) · [Key integration points](#key-integration-points) · [Failure behavior](#failure-behavior) · [Security design](#security-design) · [Configuration](#configuration) · [Scheduling and the queue](#scheduling-and-the-queue) · [Time zones](#time-zones) · [Data model](#data-model) · [Project structure](#project-structure) · [Tests](#tests) · [Deploying](#deploying-to-production) · [Limitations](#limitations) · [FAQ](#faq) · [Contributing](#contributing)
 
 ## Demo
 
@@ -764,6 +764,10 @@ Bookings made less than 24 hours before the appointment skip the 24h reminder an
 `demomailtrap.co` only delivers to the email address that owns the Mailtrap account behind your API token. Book with that address, use the sandbox, or verify your own domain.
 
 See [Mailtrap setup](#mailtrap-setup).
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up the project, run the checks and open a pull request.
 
 ## License
 
