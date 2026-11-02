@@ -179,4 +179,7 @@ a.chip-day:hover { border-color: var(--blue); color: var(--ink); }
     .summary dt:first-of-type { border-top: 0; }
 }
 
+/* Off-screen rather than display:none, which many bots detect and skip. */
+.hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
