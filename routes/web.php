@@ -9,7 +9,7 @@ Route::get('/', [ServiceController::class, 'index'])->name('home');
 
 Route::get('/book/{service:slug}', [BookingController::class, 'show'])->name('booking.show');
 Route::post('/book/{service:slug}', [BookingController::class, 'store'])
-    ->middleware('throttle:10,1')
+    ->middleware('throttle:booking')
     ->name('booking.store');
 
 // Self-service links from emails. Signed + expiring at the appointment start;

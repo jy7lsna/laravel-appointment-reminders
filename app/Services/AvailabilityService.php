@@ -73,6 +73,63 @@ class AvailabilityService
      */
     public function slotsFor(Service $service, CarbonInterface $localDate, ?Appointment $ignore = null): Collection
     {
+        $scheduled = $this->scheduledSlots($service, $localDate);
+
+        if ($scheduled->isEmpty()) {
+            return collect();
+        }
+
+        $earliest = $this->earliestBookableTime();
+        $duration = $service->duration_minutes;
+
+        $taken = Appointment::query()
+            ->confirmed()
+            ->when($ignore, fn ($query) => $query->whereKeyNot($ignore->getKey()))
+            ->where('starts_at', '<', $scheduled->last()->addMinutes($duration))
+            ->where('ends_at', '>', $scheduled->first())
+            ->get(['starts_at', 'ends_at']);
+
+        return $scheduled
+            ->reject(function (CarbonImmutable $start) use ($earliest, $duration, $taken) {
+                $end = $start->addMinutes($duration);
+
+                return $start->lt($earliest) || $taken->contains(
+                    fn (Appointment $other) => $start->lt($other->ends_at) && $end->gt($other->starts_at)
+                );
+            })
+            ->values();
+    }
+
+    /** Whether a time is on the slot grid of an open, bookable day, booked or not. */
+    public function isScheduledTime(Service $service, CarbonInterface $startsAt): bool
+    {
+        $startsAt = CarbonImmutable::instance($startsAt)->utc();
+
+        return $this->scheduledSlots($service, $startsAt->setTimezone($this->timezone()))
+            ->contains(fn (CarbonImmutable $slot) => $slot->equalTo($startsAt));
+    }
+
+    public function earliestBookableTime(): CarbonImmutable
+    {
+        return CarbonImmutable::now('UTC')->addMinutes((int) config('booking.min_notice_minutes'));
+    }
+
+    /** Whether a UTC start time is one of the currently free slots. */
+    public function isAvailable(Service $service, CarbonInterface $startsAt, ?Appointment $ignore = null): bool
+    {
+        $startsAt = CarbonImmutable::instance($startsAt)->utc();
+
+        return $this->slotsFor($service, $startsAt->setTimezone($this->timezone()), $ignore)
+            ->contains(fn (CarbonImmutable $slot) => $slot->equalTo($startsAt));
+    }
+
+    /**
+     * Every slot start (UTC) within a date's opening hours, ignoring notice and bookings.
+     *
+     * @return Collection<int, CarbonImmutable>
+     */
+    protected function scheduledSlots(Service $service, CarbonInterface $localDate): Collection
+    {
         $day = CarbonImmutable::parse($localDate->format('Y-m-d'), $this->timezone())->startOfDay();
 
         if (! $this->isBookableDate($day)) {
@@ -87,50 +144,14 @@ class AvailabilityService
 
         $opensAt = $this->localTimeOn($day, $hours->opens_at)->utc();
         $closesAt = $this->localTimeOn($day, $hours->closes_at)->utc();
-
-        if ($closesAt->lte($opensAt)) {
-            return collect();
-        }
-
-        $earliest = CarbonImmutable::now('UTC')->addMinutes((int) config('booking.min_notice_minutes'));
         $interval = max(5, (int) config('booking.slot_interval_minutes'));
-        $duration = $service->duration_minutes;
-
-        $taken = Appointment::query()
-            ->confirmed()
-            ->when($ignore, fn ($query) => $query->whereKeyNot($ignore->getKey()))
-            ->where('starts_at', '<', $closesAt)
-            ->where('ends_at', '>', $opensAt)
-            ->get(['starts_at', 'ends_at']);
-
         $slots = collect();
 
-        for ($start = $opensAt; $start->addMinutes($duration)->lte($closesAt); $start = $start->addMinutes($interval)) {
-            $end = $start->addMinutes($duration);
-
-            if ($start->lt($earliest)) {
-                continue;
-            }
-
-            $overlaps = $taken->contains(
-                fn (Appointment $other) => $start->lt($other->ends_at) && $end->gt($other->starts_at)
-            );
-
-            if (! $overlaps) {
-                $slots->push($start);
-            }
+        for ($start = $opensAt; $start->addMinutes($service->duration_minutes)->lte($closesAt); $start = $start->addMinutes($interval)) {
+            $slots->push($start);
         }
 
         return $slots;
-    }
-
-    /** Whether a UTC start time is one of the currently free slots. */
-    public function isAvailable(Service $service, CarbonInterface $startsAt, ?Appointment $ignore = null): bool
-    {
-        $startsAt = CarbonImmutable::instance($startsAt)->utc();
-
-        return $this->slotsFor($service, $startsAt->setTimezone($this->timezone()), $ignore)
-            ->contains(fn (CarbonImmutable $slot) => $slot->equalTo($startsAt));
     }
 
     /** @return Collection<int, BusinessHour> keyed by weekday */

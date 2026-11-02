@@ -137,20 +137,38 @@ it('re-checks availability inside the transaction', function () {
         ->toThrow(SlotUnavailableException::class);
 });
 
-it('rejects times that are not real slots', function (string $time) {
+it('rejects times that are not real slots with a clear message', function (string $time, string $message) {
     Mail::fake();
 
     $this->post('/book/consultation', bookingPayload(['starts_at' => local($time)->toIso8601ZuluString()]))
-        ->assertSessionHasErrors('starts_at');
+        ->assertSessionHasErrors(['starts_at' => $message]);
 
     expect(Appointment::count())->toBe(0);
+    Mail::assertNothingQueued();
 })->with([
-    'not aligned to the interval' => '2026-10-19 09:10',
-    'before opening' => '2026-10-19 08:30',
-    'runs past closing' => '2026-10-19 17:45',
-    'closed day' => '2026-10-25 10:00',
-    'in the past' => '2026-10-17 10:00',
+    'not aligned to the interval' => ['2026-10-19 09:10', 'That time is outside our available hours, please pick another.'],
+    'before opening' => ['2026-10-19 08:30', 'That time is outside our available hours, please pick another.'],
+    'runs past closing' => ['2026-10-19 17:45', 'That time is outside our available hours, please pick another.'],
+    'closed day' => ['2026-10-25 10:00', 'That time is outside our available hours, please pick another.'],
+    'beyond the booking window' => ['2027-03-01 10:00', 'That time is outside our available hours, please pick another.'],
+    'in the past' => ['2026-10-17 10:00', 'That time has already passed, please pick another.'],
 ]);
+
+it('rejects a time inside the minimum notice period with a clear message', function () {
+    Mail::fake();
+    $this->travelTo(local('2026-10-19 09:00'));
+
+    $this->post('/book/consultation', bookingPayload(['starts_at' => local('2026-10-19 09:30')->toIso8601ZuluString()]))
+        ->assertSessionHasErrors(['starts_at' => 'That time is too soon to book, please pick a later one.']);
+
+    expect(Appointment::count())->toBe(0);
+});
+
+it('rejects a starts_at that is not a date without a slot message', function () {
+    $this->post('/book/consultation', bookingPayload(['starts_at' => 'not-a-date']))
+        ->assertSessionHasErrors('starts_at')
+        ->assertSessionDoesntHaveErrors(['starts_at' => 'That time has already passed, please pick another.']);
+});
 
 it('validates the customer details', function () {
     $this->post('/book/consultation', [])
@@ -178,4 +196,78 @@ it('rate limits booking attempts', function () {
     }
 
     $this->post('/book/consultation', [])->assertStatus(429);
+});
+
+it('rate limits an IP even when every attempt uses a different email', function () {
+    for ($i = 0; $i < 10; $i++) {
+        $this->post('/book/consultation', bookingPayload(['customer_email' => "guest{$i}@example.com", 'customer_phone' => 'abc']))
+            ->assertRedirect();
+    }
+
+    $this->post('/book/consultation', bookingPayload(['customer_email' => 'guest10@example.com', 'customer_phone' => 'abc']))
+        ->assertStatus(429);
+});
+
+it('rate limits an email even when every attempt uses a different IP', function () {
+    for ($i = 1; $i <= 5; $i++) {
+        $this->withServerVariables(['REMOTE_ADDR' => "203.0.113.{$i}"])
+            ->post('/book/consultation', bookingPayload(['customer_phone' => 'abc']))
+            ->assertRedirect();
+    }
+
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.6'])
+        ->post('/book/consultation', bookingPayload(['customer_phone' => 'abc']))
+        ->assertStatus(429);
+});
+
+it('treats differently cased and spaced emails as the same address when rate limiting', function () {
+    for ($i = 1; $i <= 5; $i++) {
+        $this->withServerVariables(['REMOTE_ADDR' => "203.0.113.{$i}"])
+            ->post('/book/consultation', bookingPayload(['customer_phone' => 'abc']));
+    }
+
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.6'])
+        ->post('/book/consultation', bookingPayload(['customer_email' => '  PRIYA@Example.com ', 'customer_phone' => 'abc']))
+        ->assertStatus(429);
+});
+
+it('does not rate limit other customers when one email hits its limit', function () {
+    for ($i = 1; $i <= 6; $i++) {
+        $this->withServerVariables(['REMOTE_ADDR' => "203.0.113.{$i}"])
+            ->post('/book/consultation', bookingPayload(['customer_phone' => 'abc']));
+    }
+
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.7'])
+        ->post('/book/consultation', bookingPayload(['customer_email' => 'other@example.com', 'customer_phone' => 'abc']))
+        ->assertRedirect();
+});
+
+it('renders the honeypot field on the booking form', function () {
+    $this->get('/book/consultation?date=2026-10-19')
+        ->assertOk()
+        ->assertSee('name="website"', false);
+});
+
+it('rejects a booking when the honeypot is filled', function () {
+    Mail::fake();
+
+    $this->post('/book/consultation', bookingPayload(['website' => 'https://spam.example']))
+        ->assertSessionHasErrors('website');
+
+    expect(Appointment::count())->toBe(0);
+    Mail::assertNothingQueued();
+});
+
+it('accepts a booking when the honeypot is left empty', function () {
+    Mail::fake();
+
+    $this->post('/book/consultation', bookingPayload(['website' => '']))
+        ->assertSessionHasNoErrors();
+
+    expect(Appointment::count())->toBe(1);
+});
+
+it('does not crash the rate limiter when the email is not a string', function () {
+    $this->post('/book/consultation', bookingPayload(['customer_email' => ['a@example.com']]))
+        ->assertSessionHasErrors('customer_email');
 });
